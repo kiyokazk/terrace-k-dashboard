@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terrace.K — チーム進捗ダッシュボード</title>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* Dark mode palette */
+      --bg-base:        #0f1117;
+      --bg-surface:     #181c27;
+      --bg-card:        #1e2336;
+      --bg-card-hover:  #242a42;
+      --border:         #2b3050;
+      --text-primary:   #e8ecf4;
+      --text-secondary: #8892b0;
+      --text-muted:     #4a5270;
+
+      /* Status colors */
+      --status-todo-bg:    #2a2d38;
+      --status-todo-text:  #7a8099;
+      --status-doing-bg:   #1a2a45;
+      --status-doing-text: #5ba3f5;
+      --status-done-bg:    #162b20;
+      --status-done-text:  #4caf7d;
+
+      /* Member accent colors */
+      --accent-mio:    #f0c060;
+      --accent-yui:    #60c0f0;
+      --accent-nanase: #f070a0;
+      --accent-rein:   #a080e0;
+
+      /* Glow intensities */
+      --glow-mio:    rgba(240, 192, 96, 0.18);
+      --glow-yui:    rgba(96, 192, 240, 0.18);
+      --glow-nanase: rgba(240, 112, 160, 0.18);
+      --glow-rein:   rgba(160, 128, 224, 0.18);
+    }
+
+    body {
+      font-family: 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 32px 24px 64px;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .header-logo {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .header-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+
+    .header-divider {
+      width: 40px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-nanase), var(--accent-yui));
+      margin: 20px auto 0;
+      border-radius: 2px;
+    }
+
+    /* ===== Grid ===== */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 640px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== Card ===== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+    }
+
+    /* Member accent stripe & glow */
+    .card--mio::before    { background: var(--accent-mio); }
+    .card--yui::before    { background: var(--accent-yui); }
+    .card--nanase::before { background: var(--accent-nanase); }
+    .card--rein::before   { background: var(--accent-rein); }
+
+    .card--mio:hover    { box-shadow: 0 8px 32px var(--glow-mio); }
+    .card--yui:hover    { box-shadow: 0 8px 32px var(--glow-yui); }
+    .card--nanase:hover { box-shadow: 0 8px 32px var(--glow-nanase); }
+    .card--rein:hover   { box-shadow: 0 8px 32px var(--glow-rein); }
+
+    /* ===== Card header ===== */
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      border: 2px solid transparent;
+    }
+
+    .card--mio    .avatar { border-color: var(--accent-mio); }
+    .card--yui    .avatar { border-color: var(--accent-yui); }
+    .card--nanase .avatar { border-color: var(--accent-nanase); }
+    .card--rein   .avatar { border-color: var(--accent-rein); }
+
+    .avatar-fallback {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 700;
+      border: 2px solid;
+      flex-shrink: 0;
+    }
+
+    .card--mio    .avatar-fallback { background: var(--glow-mio);    border-color: var(--accent-mio);    color: var(--accent-mio); }
+    .card--yui    .avatar-fallback { background: var(--glow-yui);    border-color: var(--accent-yui);    color: var(--accent-yui); }
+    .card--nanase .avatar-fallback { background: var(--glow-nanase); border-color: var(--accent-nanase); color: var(--accent-nanase); }
+    .card--rein   .avatar-fallback { background: var(--glow-rein);   border-color: var(--accent-rein);   color: var(--accent-rein); }
+
+    .card-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--text-primary);
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .card-role {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 2px 10px;
+      border-radius: 100px;
+      border: 1px solid;
+    }
+
+    .card--mio    .card-role { color: var(--accent-mio);    border-color: var(--accent-mio);    background: var(--glow-mio); }
+    .card--yui    .card-role { color: var(--accent-yui);    border-color: var(--accent-yui);    background: var(--glow-yui); }
+    .card--nanase .card-role { color: var(--accent-nanase); border-color: var(--accent-nanase); background: var(--glow-nanase); }
+    .card--rein   .card-role { color: var(--accent-rein);   border-color: var(--accent-rein);   background: var(--glow-rein); }
+
+    /* ===== Task list ===== */
+    .task-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 12px;
+      background: var(--bg-surface);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .task-name {
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.4;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    .badge--todo  { background: var(--status-todo-bg);  color: var(--status-todo-text); }
+    .badge--doing { background: var(--status-doing-bg); color: var(--status-doing-text); }
+    .badge--done  { background: var(--status-done-bg);  color: var(--status-done-text); }
+
+    /* ===== Footer ===== */
+    .footer {
+      text-align: center;
+      margin-top: 52px;
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header ===== -->
+  <header class="header">
+    <p class="header-logo">Terrace.K</p>
+    <h1 class="header-title">チーム進捗ダッシュボード</h1>
+    <p class="header-subtitle">Team Progress · v8</p>
+    <div class="header-divider"></div>
+  </header>
+
+  <!-- ===== Grid ===== -->
+  <main class="grid">
+
+    <!-- 澪（Mio） -->
+    <article class="card card--mio">
+      <div class="card-header">
+        <img
+          class="avatar"
+          src="/Users/kiyokazk/TerraceK/characters/mio_icon02.png"
+          alt="澪"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <div class="avatar-fallback" style="display:none;">澪</div>
+        <div class="card-meta">
+          <p class="card-name">澪</p>
+          <span class="card-role">PM</span>
+        </div>
+      </div>
+      <ul class="task-list">
+        <li class="task-item">
+          <span class="task-name">チーム進捗ダッシュボード v8 管理</span>
+          <span class="badge badge--doing">進行中</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">週次スプリント整理</span>
+          <span class="badge badge--done">完了</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">新規プロジェクト仕様策定</span>
+          <span class="badge badge--todo">未着手</span>
+        </li>
+      </ul>
+    </article>
+
+    <!-- ユイ（Yui） -->
+    <article class="card card--yui">
+      <div class="card-header">
+        <img
+          class="avatar"
+          src="/Users/kiyokazk/TerraceK/characters/yui_icon02.png"
+          alt="ユイ"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <div class="avatar-fallback" style="display:none;">ユ</div>
+        <div class="card-meta">
+          <p class="card-name">ユイ</p>
+          <span class="card-role">開発</span>
+        </div>
+      </div>
+      <ul class="task-list">
+        <li class="task-item">
+          <span class="task-name">ダッシュボード実装</span>
+          <span class="badge badge--doing">進行中</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">API連携検討</span>
+          <span class="badge badge--todo">未着手</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">テスト環境構築</span>
+          <span class="badge badge--done">完了</span>
+        </li>
+      </ul>
+    </article>
+
+    <!-- ナナセ（Nanase） -->
+    <article class="card card--nanase">
+      <div class="card-header">
+        <img
+          class="avatar"
+          src="/Users/kiyokazk/TerraceK/characters/nanase_icon01.png"
+          alt="ナナセ"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <div class="avatar-fallback" style="display:none;">ナ</div>
+        <div class="card-meta">
+          <p class="card-name">ナナセ</p>
+          <span class="card-role">デザイン</span>
+        </div>
+      </div>
+      <ul class="task-list">
+        <li class="task-item">
+          <span class="task-name">ダッシュボードデザイン設計</span>
+          <span class="badge badge--doing">進行中</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">カラーパレット策定</span>
+          <span class="badge badge--done">完了</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">キャラクターアイコン最適化</span>
+          <span class="badge badge--todo">未着手</span>
+        </li>
+      </ul>
+    </article>
+
+    <!-- レイン（Rein） -->
+    <article class="card card--rein">
+      <div class="card-header">
+        <img
+          class="avatar"
+          src="/Users/kiyokazk/TerraceK/characters/rein_icon01.png"
+          alt="レイン"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <div class="avatar-fallback" style="display:none;">レ</div>
+        <div class="card-meta">
+          <p class="card-name">レイン</p>
+          <span class="card-role">顧問</span>
+        </div>
+      </div>
+      <ul class="task-list">
+        <li class="task-item">
+          <span class="task-name">チーム全体の状況監視</span>
+          <span class="badge badge--doing">進行中</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">リスク・課題分析</span>
+          <span class="badge badge--doing">進行中</span>
+        </li>
+        <li class="task-item">
+          <span class="task-name">仕様レビュー・助言</span>
+          <span class="badge badge--done">完了</span>
+        </li>
+      </ul>
+    </article>
+
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="footer">
+    <p>Terrace.K · Team Dashboard v8</p>
+  </footer>
+
+</body>
+</html>
