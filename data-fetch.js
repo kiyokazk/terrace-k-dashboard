@@ -3,10 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 const AGENTS = [
-  { id: 'main', name: '澪' },
-  { id: 'yui', name: 'ユイ' },
-  { id: 'nanase', name: 'ナナセ' },
-  { id: 'rein', name: 'レイン' },
+  { id: 'main', name: '澪', iconPath: '/characters/mio_icon02.png' },
+  { id: 'yui', name: 'ユイ', iconPath: '/characters/yui_icon02.png' },
+  { id: 'nanase', name: 'ナナセ', iconPath: '/characters/nanase_icon01.png' },
+  { id: 'rein', name: 'レイン', iconPath: '/characters/rein_icon01.png' },
 ];
 
 const AGENTS_ROOT = '/Users/kiyokazk/.openclaw/agents';
@@ -19,27 +19,16 @@ function formatJst(dateLike) {
   if (!dateLike) return '未取得';
   const date = new Date(dateLike);
   if (Number.isNaN(date.getTime())) return '未取得';
-
   const formatter = new Intl.DateTimeFormat('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Tokyo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false, timeZone: 'Asia/Tokyo',
   });
-
   return `${formatter.format(date).replaceAll('/', '-')} JST`;
 }
 
 function safeReadDir(dirPath) {
-  try {
-    return fs.readdirSync(dirPath, { withFileTypes: true });
-  } catch {
-    return [];
-  }
+  try { return fs.readdirSync(dirPath, { withFileTypes: true }); } catch { return []; }
 }
 
 function findLatestSessionFile(agentId) {
@@ -52,7 +41,6 @@ function findLatestSessionFile(agentId) {
       return { fullPath, mtimeMs: stat.mtimeMs };
     })
     .sort((a, b) => b.mtimeMs - a.mtimeMs);
-
   return files[0] ?? null;
 }
 
@@ -60,51 +48,78 @@ function extractModelFromJsonl(filePath) {
   try {
     const lines = fs.readFileSync(filePath, 'utf8').split('\n');
     let latestModel = null;
-
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
         const parsed = JSON.parse(line);
         const candidates = [parsed?.model, parsed?.message?.model, parsed?.payload?.model, parsed?.data?.model];
         for (const candidate of candidates) {
-          if (typeof candidate === 'string' && candidate.trim()) {
-            latestModel = candidate.trim();
-          }
+          if (typeof candidate === 'string' && candidate.trim()) latestModel = candidate.trim();
         }
       } catch {}
     }
-
     return latestModel ?? '—';
   } catch {
     return '取得不可';
   }
 }
 
+function extractCurrentTaskFromJsonl(filePath) {
+  try {
+    const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      const line = lines[index];
+      if (!line.trim()) continue;
+      try {
+        const parsed = JSON.parse(line);
+        const message = parsed?.message;
+        if (message?.role !== 'assistant') continue;
+        const content = Array.isArray(message.content) ? message.content : [];
+        const textParts = content
+          .filter((item) => item?.type === 'text' && typeof item.text === 'string')
+          .map((item) => item.text.trim())
+          .filter(Boolean);
+        const raw = textParts.join(' ').replace(/\s+/g, ' ').trim();
+        // システムメッセージ・制御文字列を除外してスキップ
+        const isSystemText = /^NO_REPLY$/.test(raw) || /^\[\[.*?\]\]/.test(raw) || raw.length === 0;
+        if (isSystemText) continue;
+        return raw.slice(0, 20);
+      } catch {}
+    }
+    return '—';
+  } catch {
+    return '—';
+  }
+}
+
 function getAgentData(agent) {
   const latest = findLatestSessionFile(agent.id);
+  const checkedAt = formatJst(Date.now());
   if (!latest) {
     return {
       name: agent.name,
       agentId: agent.id,
+      iconPath: agent.iconPath,
       status: 'offline',
       label: 'Offline',
       model: '取得不可',
-      checkedAt: formatJst(Date.now()),
+      checkedAt,
       lastActive: '未取得',
+      currentTask: '—',
     };
   }
-
   const now = Date.now();
   const isOnline = now - latest.mtimeMs <= ONLINE_WINDOW_MS;
-
   return {
     name: agent.name,
     agentId: agent.id,
+    iconPath: agent.iconPath,
     status: isOnline ? 'online' : 'offline',
     label: isOnline ? 'Online' : 'Offline',
     model: extractModelFromJsonl(latest.fullPath),
-    checkedAt: formatJst(now),
+    checkedAt,
     lastActive: formatJst(latest.mtimeMs),
+    currentTask: extractCurrentTaskFromJsonl(latest.fullPath),
   };
 }
 
@@ -122,7 +137,6 @@ function getCronJobs() {
       const stat = fs.statSync(runFile);
       lastRunAt = formatJst(stat.mtimeMs);
     } catch {}
-
     return {
       id: job.id,
       name: job.name ?? job.id,
@@ -130,7 +144,7 @@ function getCronJobs() {
       status: job.enabled ? 'Enabled' : 'Disabled',
       statusTone: job.enabled ? 'online' : 'unknown',
       lastRunAt,
-      runnable: false,
+      runnable: true,
       agentId: job.agentId ?? '—',
     };
   });
@@ -142,31 +156,17 @@ async function getGatewayStatus() {
     const json = await response.json();
     const ok = response.ok && json?.ok === true && json?.status === 'live';
     return ok
-      ? {
-          status: 'Running',
-          tone: 'online',
-          description: 'Gateway health endpoint が live を返しています。',
-          checkedAt: formatJst(Date.now()),
-        }
-      : {
-          status: 'Error',
-          tone: 'error',
-          description: 'Gateway health endpoint は応答しましたが、期待する live 状態ではありません。',
-          checkedAt: formatJst(Date.now()),
-        };
+      ? { status: 'Running', tone: 'online', description: 'Gateway health endpoint が live を返しています。', checkedAt: formatJst(Date.now()) }
+      : { status: 'Error', tone: 'error', description: 'Gateway health endpoint は応答しましたが、期待する live 状態ではありません。', checkedAt: formatJst(Date.now()) };
   } catch {
-    return {
-      status: 'Error',
-      tone: 'error',
-      description: 'Gateway health endpoint に到達できませんでした。',
-      checkedAt: formatJst(Date.now()),
-    };
+    return { status: 'Error', tone: 'error', description: 'Gateway health endpoint に到達できませんでした。', checkedAt: formatJst(Date.now()) };
   }
 }
 
 async function collectStatus() {
   const generatedAt = Date.now();
   return {
+    version: 'v1.1.0',
     lastUpdated: formatJst(generatedAt),
     generatedAtMs: generatedAt,
     agents: AGENTS.map(getAgentData),
@@ -175,18 +175,13 @@ async function collectStatus() {
   };
 }
 
-module.exports = {
-  collectStatus,
-  formatJst,
-};
+module.exports = { collectStatus, formatJst };
 
 if (require.main === module) {
-  collectStatus()
-    .then((data) => {
-      process.stdout.write(JSON.stringify(data, null, 2) + '\n');
-    })
-    .catch((error) => {
-      console.error(error);
-      process.exit(1);
-    });
+  collectStatus().then((data) => {
+    process.stdout.write(JSON.stringify(data, null, 2) + '\n');
+  }).catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 }
