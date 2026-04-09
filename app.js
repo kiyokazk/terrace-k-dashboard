@@ -1,17 +1,15 @@
 const fallbackDashboardData = {
+  version: 'v1.2.0',
   lastUpdated: '未取得',
   agents: [
-    { name: '澪', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得' },
-    { name: 'ユイ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得' },
-    { name: 'ナナセ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得' },
-    { name: 'レイン', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得' },
+    { name: '澪', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/mio_icon02.png' },
+    { name: 'ユイ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/yui_icon02.png' },
+    { name: 'ナナセ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/nanase_icon01.png' },
+    { name: 'レイン', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/rein_icon01.png' },
   ],
   cronJobs: [],
   gateway: {
-    status: 'Unknown',
-    tone: 'unknown',
-    description: 'サーバーからの取得に失敗しました。',
-    checkedAt: '未取得',
+    status: 'Unknown', tone: 'unknown', description: 'サーバーからの取得に失敗しました。', checkedAt: '未取得',
   },
 };
 
@@ -20,11 +18,16 @@ let autoRefreshTimer = null;
 let state = {
   data: structuredClone(fallbackDashboardData),
   selectedJob: null,
-  isRunning: false,
+  runningJobId: null,
   toastMessage: '',
   loading: true,
   loadError: '',
+  inlineJobFeedback: {},
 };
+
+function escapeHtml(value) {
+  return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
 
 function statusClass(tone) {
   switch (tone) {
@@ -38,6 +41,7 @@ function statusClass(tone) {
 
 function normalizeData(data) {
   return {
+    version: data?.version ?? 'v1.2.0',
     lastUpdated: data?.lastUpdated ?? '未取得',
     agents: Array.isArray(data?.agents) && data.agents.length ? data.agents : fallbackDashboardData.agents,
     cronJobs: Array.isArray(data?.cronJobs) ? data.cronJobs : [],
@@ -49,87 +53,103 @@ async function loadDashboardData({ showFeedback = false } = {}) {
   state.loading = true;
   state.loadError = '';
   render();
-
   try {
     const response = await fetch(`/api/status?ts=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     state.data = normalizeData(data);
     state.loading = false;
-    if (showFeedback) {
-      showToast('最新データを再取得しました');
-    } else {
-      render();
-    }
+    if (showFeedback) showToast('最新データを再取得しました');
+    else render();
   } catch {
     state.data = structuredClone(fallbackDashboardData);
     state.loading = false;
     state.loadError = 'サーバーからの状態取得に失敗したため、フォールバック表示に切り替えました。';
-    if (showFeedback) {
-      showToast('再取得に失敗しました');
-    } else {
+    if (showFeedback) showToast('再取得に失敗しました');
+    else render();
+  }
+}
+
+async function runCronJob(jobId) {
+  state.runningJobId = jobId;
+  state.inlineJobFeedback[jobId] = { tone: 'warning', text: '実行中...' };
+  render();
+  try {
+    const response = await fetch('/api/cron/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.message || '実行に失敗しました');
+    state.inlineJobFeedback[jobId] = { tone: 'online', text: '実行を開始しました' };
+    state.runningJobId = null;
+    render();
+    setTimeout(() => {
+      delete state.inlineJobFeedback[jobId];
+      loadDashboardData({ showFeedback: true });
+    }, 1500);
+  } catch (error) {
+    state.inlineJobFeedback[jobId] = { tone: 'error', text: '実行に失敗しました' };
+    state.runningJobId = null;
+    render();
+    setTimeout(() => {
+      delete state.inlineJobFeedback[jobId];
       render();
-    }
+    }, 2500);
   }
 }
 
 function renderAgents(agents) {
   return agents.map((agent) => `
     <article class="agent-card">
-      <h3 class="agent-name">${agent.name}</h3>
-      <span class="status-badge ${statusClass(agent.status)}">${agent.label}</span>
-      <p class="agent-model">Model: ${agent.model ?? '—'}</p>
-      <p class="agent-meta">Last active: ${agent.lastActive ?? '未取得'}</p>
-      <p class="agent-meta">Last checked: ${agent.checkedAt ?? '未取得'}</p>
+      <div class="agent-header-row">
+        <div class="agent-copy">
+          <h3 class="agent-name">${escapeHtml(agent.name)}</h3>
+          <span class="status-badge ${statusClass(agent.status)}">${escapeHtml(agent.label)}</span>
+          <p class="agent-model">Model: ${escapeHtml(agent.model ?? '—')}</p>
+          <p class="agent-meta">Last active: ${escapeHtml(agent.lastActive ?? '未取得')}</p>
+          <p class="agent-meta">Last checked: ${escapeHtml(agent.checkedAt ?? '未取得')}</p>
+        </div>
+        <img class="agent-icon" src="${escapeHtml(agent.iconPath)}" alt="${escapeHtml(agent.name)} icon" />
+      </div>
+      <div class="agent-task-block">
+        <p class="agent-task-label">現在のタスク</p>
+        <p class="agent-task-value" title="${escapeHtml(agent.currentTask ?? '—')}">${escapeHtml(agent.currentTask ?? '—')}</p>
+      </div>
     </article>
   `).join('');
 }
 
 function renderCronRows(cronJobs) {
-  if (!cronJobs.length) {
-    return `<tr><td colspan="4"><span class="table-note">Cronジョブ情報を取得できませんでした。</span></td></tr>`;
-  }
-
-  return cronJobs.map((job) => `
-    <tr>
-      <td>
-        <strong>${job.name}</strong>
-        <div class="table-note">agent: ${job.agentId ?? '—'}</div>
-      </td>
-      <td><span class="status-badge ${statusClass(job.statusTone)}">${job.status}</span></td>
-      <td>${job.lastRunAt}</td>
-      <td>${job.runnable
-        ? `<button class="run-button" data-job-name="${job.name}" ${state.isRunning ? 'disabled' : ''}>${state.isRunning && state.selectedJob === job.name ? '実行中...' : '実行'}</button>`
-        : '<span class="table-note">未対応</span>'}
-      </td>
-    </tr>
-  `).join('');
-}
-
-function renderDialog() {
-  if (!state.selectedJob) return '';
-  return `
-    <div class="dialog-backdrop" id="confirm-dialog">
-      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-        <h3 id="dialog-title">Cronを実行しますか？</h3>
-        <p>「${state.selectedJob}」を今すぐ実行します。よろしいですか？</p>
-        <div class="dialog-actions">
-          <button class="dialog-button" id="cancel-run">キャンセル</button>
-          <button class="dialog-button primary" id="confirm-run" ${state.isRunning ? 'disabled' : ''}>実行する</button>
-        </div>
-      </div>
-    </div>
-  `;
+  if (!cronJobs.length) return `<tr><td colspan="4"><span class="table-note">Cronジョブ情報を取得できませんでした。</span></td></tr>`;
+  return cronJobs.map((job) => {
+    const feedback = state.inlineJobFeedback[job.id];
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(job.name)}</strong>
+          <div class="table-note">agent: ${escapeHtml(job.agentId ?? '—')}</div>
+          ${feedback ? `<div class="job-feedback ${feedback.tone === 'error' ? 'job-feedback-error' : ''}">${escapeHtml(feedback.text)}</div>` : ''}
+        </td>
+        <td><span class="status-badge ${statusClass(job.statusTone)}">${escapeHtml(job.status)}</span></td>
+        <td>${escapeHtml(job.lastRunAt)}</td>
+        <td>
+          <button class="run-button" data-job-id="${escapeHtml(job.id)}" ${state.runningJobId ? 'disabled' : ''}>${state.runningJobId === job.id ? '実行中...' : 'Run'}</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function renderToast() {
-  return state.toastMessage ? `<div class="toast">${state.toastMessage}</div>` : '';
+  return state.toastMessage ? `<div class="toast">${escapeHtml(state.toastMessage)}</div>` : '';
 }
 
 function renderBanner() {
   if (state.loading) return '<div class="info-banner">読み込み中...</div>';
-  if (state.loadError) return `<div class="info-banner info-banner-error">${state.loadError}</div>`;
-  return '<div class="info-banner">サーバーからリアルタイム取得しています。30秒ごとに自動更新します。</div>';
+  if (state.loadError) return `<div class="info-banner info-banner-error">${escapeHtml(state.loadError)}</div>`;
+  return '<div class="info-banner">サーバーからリアルタイム取得しています。1秒ごとに自動更新します。</div>';
 }
 
 function render() {
@@ -143,9 +163,10 @@ function render() {
           <p class="page-subtitle">チーム稼働状況の一覧</p>
         </div>
         <div class="header-actions">
+          <div class="version-label">${escapeHtml(data.version ?? 'v1.2.0')}</div>
           <div>
             <p class="meta-text">Last updated</p>
-            <strong>${data.lastUpdated}</strong>
+            <strong>${escapeHtml(data.lastUpdated)}</strong>
           </div>
           <button class="refresh-button" id="refresh-button" ${state.loading ? 'disabled' : ''}>更新</button>
         </div>
@@ -169,7 +190,7 @@ function render() {
             <h2 class="section-title">Cron Jobs</h2>
             <p class="section-description">定期実行タスクの状態一覧</p>
           </div>
-          <span class="table-note">runs/ の最終更新時刻を表示</span>
+          <span class="table-note">Run ボタンで即時実行できます</span>
         </div>
         <div class="table-wrap">
           <table class="cron-table">
@@ -194,13 +215,12 @@ function render() {
           </div>
         </div>
         <div class="gateway-status-row">
-          <span class="status-badge ${statusClass(data.gateway.tone)}">${data.gateway.status}</span>
-          <p class="gateway-description">${data.gateway.description}</p>
+          <span class="status-badge ${statusClass(data.gateway.tone)}">${escapeHtml(data.gateway.status)}</span>
+          <p class="gateway-description">${escapeHtml(data.gateway.description)}</p>
         </div>
-        <p class="gateway-meta">Last checked: ${data.gateway.checkedAt}</p>
+        <p class="gateway-meta">Last checked: ${escapeHtml(data.gateway.checkedAt)}</p>
       </section>
     </main>
-    ${renderDialog()}
     ${renderToast()}
   `;
   bindEvents();
@@ -209,54 +229,19 @@ function render() {
 function showToast(message) {
   state.toastMessage = message;
   render();
-  window.setTimeout(() => {
-    state.toastMessage = '';
-    render();
-  }, 2200);
+  window.setTimeout(() => { state.toastMessage = ''; render(); }, 2200);
 }
 
 function bindEvents() {
-  document.querySelector('#refresh-button')?.addEventListener('click', () => {
-    loadDashboardData({ showFeedback: true });
-  });
-
+  document.querySelector('#refresh-button')?.addEventListener('click', () => loadDashboardData({ showFeedback: true }));
   document.querySelectorAll('.run-button').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.selectedJob = button.dataset.jobName;
-      render();
-    });
-  });
-
-  document.querySelector('#cancel-run')?.addEventListener('click', () => {
-    state.selectedJob = null;
-    render();
-  });
-
-  document.querySelector('#confirm-dialog')?.addEventListener('click', (event) => {
-    if (event.target.id === 'confirm-dialog') {
-      state.selectedJob = null;
-      render();
-    }
-  });
-
-  document.querySelector('#confirm-run')?.addEventListener('click', () => {
-    if (!state.selectedJob) return;
-    state.isRunning = true;
-    render();
-    window.setTimeout(() => {
-      state.isRunning = false;
-      const finishedJob = state.selectedJob;
-      state.selectedJob = null;
-      showToast(`「${finishedJob}」の手動実行UIは未接続です`);
-    }, 500);
+    button.addEventListener('click', () => runCronJob(button.dataset.jobId));
   });
 }
 
 function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-  autoRefreshTimer = window.setInterval(() => {
-    loadDashboardData();
-  }, 30_000);
+  autoRefreshTimer = window.setInterval(() => loadDashboardData(), 30_000);
 }
 
 render();
