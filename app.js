@@ -241,7 +241,7 @@ function bindEvents() {
 
 function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-  autoRefreshTimer = window.setInterval(() => loadDashboardData(), 30_000);
+  autoRefreshTimer = window.setInterval(() => loadDashboardData(), 1_000);
 }
 
 render();
