@@ -316,3 +316,81 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+.version-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  align-self: flex-start;
+}
+
+.agent-card {
+  min-height: 232px;
+}
+
+.agent-header-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.agent-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-icon {
+  width: 112px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 18px;
+  flex-shrink: 0;
+}
+
+.agent-task-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.agent-task-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.agent-task-value {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.job-feedback {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--success-text);
+}
+
+.job-feedback-error {
+  color: var(--danger-text);
+}
+
+@media (max-width: 880px) {
+  .agent-header-row {
+    flex-direction: column-reverse;
+  }
+
+  .agent-icon {
+    width: 96px;
+    height: 96px;
+  }
+
+  .header-actions {
+    align-items: flex-start;
+  }
+}

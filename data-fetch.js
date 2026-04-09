@@ -14,15 +14,14 @@ const CRON_JOBS_FILE = '/Users/kiyokazk/.openclaw/cron/jobs.json';
 const CRON_RUNS_DIR = '/Users/kiyokazk/.openclaw/cron/runs';
 const GATEWAY_HEALTH_URL = 'http://127.0.0.1:18789/health';
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+const CURRENT_TASK_WINDOW_MS = 10 * 60 * 1000;
 
 function formatJst(dateLike) {
   if (!dateLike) return '未取得';
   const date = new Date(dateLike);
   if (Number.isNaN(date.getTime())) return '未取得';
   const formatter = new Intl.DateTimeFormat('ja-JP', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false, timeZone: 'Asia/Tokyo',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Tokyo',
   });
   return `${formatter.format(date).replaceAll('/', '-')} JST`;
 }
@@ -64,6 +63,20 @@ function extractModelFromJsonl(filePath) {
   }
 }
 
+function extractRecentTasksFromTaskFile(agentId) {
+  const taskFile = path.join(AGENTS_ROOT, agentId, 'current-task.json');
+  try {
+    const parsed = JSON.parse(fs.readFileSync(taskFile, 'utf8'));
+    const tasks = Array.isArray(parsed?.tasks) ? parsed.tasks.filter((t) => typeof t === 'string').map((t) => t.trim()).filter(Boolean) : [];
+    const updatedAt = Number(parsed?.updatedAt);
+    if (!tasks.length || !Number.isFinite(updatedAt)) return null;
+    if (Date.now() - updatedAt > CURRENT_TASK_WINDOW_MS) return null;
+    return tasks.slice(-3);
+  } catch {
+    return null;
+  }
+}
+
 function extractCurrentTaskFromJsonl(filePath) {
   try {
     const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
@@ -75,12 +88,8 @@ function extractCurrentTaskFromJsonl(filePath) {
         const message = parsed?.message;
         if (message?.role !== 'assistant') continue;
         const content = Array.isArray(message.content) ? message.content : [];
-        const textParts = content
-          .filter((item) => item?.type === 'text' && typeof item.text === 'string')
-          .map((item) => item.text.trim())
-          .filter(Boolean);
+        const textParts = content.filter((item) => item?.type === 'text' && typeof item.text === 'string').map((item) => item.text.trim()).filter(Boolean);
         const raw = textParts.join(' ').replace(/\s+/g, ' ').trim();
-        // システムメッセージ・制御文字列を除外してスキップ
         const isSystemText = /^NO_REPLY$/.test(raw) || /^\[\[.*?\]\]/.test(raw) || raw.length === 0;
         if (isSystemText) continue;
         return raw.slice(0, 50);
@@ -90,6 +99,13 @@ function extractCurrentTaskFromJsonl(filePath) {
   } catch {
     return '—';
   }
+}
+
+function resolveRecentTasks(agentId, latestSessionPath) {
+  const fromTaskFile = extractRecentTasksFromTaskFile(agentId);
+  if (fromTaskFile) return fromTaskFile;
+  if (!latestSessionPath) return ['—'];
+  return [extractCurrentTaskFromJsonl(latestSessionPath)];
 }
 
 function getAgentData(agent) {
@@ -105,7 +121,7 @@ function getAgentData(agent) {
       model: '取得不可',
       checkedAt,
       lastActive: '未取得',
-      currentTask: '—',
+      recentTasks: resolveRecentTasks(agent.id, null),
     };
   }
   const now = Date.now();
@@ -119,7 +135,7 @@ function getAgentData(agent) {
     model: extractModelFromJsonl(latest.fullPath),
     checkedAt,
     lastActive: formatJst(latest.mtimeMs),
-    currentTask: extractCurrentTaskFromJsonl(latest.fullPath),
+    recentTasks: resolveRecentTasks(agent.id, latest.fullPath),
   };
 }
 
@@ -129,7 +145,6 @@ function getCronJobs() {
     const parsed = JSON.parse(fs.readFileSync(CRON_JOBS_FILE, 'utf8'));
     jobs = Array.isArray(parsed.jobs) ? parsed.jobs : [];
   } catch {}
-
   return jobs.map((job) => {
     const runFile = path.join(CRON_RUNS_DIR, `${job.id}.jsonl`);
     let lastRunAt = '未取得';
@@ -166,7 +181,7 @@ async function getGatewayStatus() {
 async function collectStatus() {
   const generatedAt = Date.now();
   return {
-    version: 'v1.1.0',
+    version: 'v1.3.0',
     lastUpdated: formatJst(generatedAt),
     generatedAtMs: generatedAt,
     agents: AGENTS.map(getAgentData),
