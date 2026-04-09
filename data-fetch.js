@@ -83,7 +83,7 @@ function extractCurrentTaskFromJsonl(filePath) {
         // システムメッセージ・制御文字列を除外してスキップ
         const isSystemText = /^NO_REPLY$/.test(raw) || /^\[\[.*?\]\]/.test(raw) || raw.length === 0;
         if (isSystemText) continue;
-        return raw.slice(0, 20);
+        return raw.slice(0, 50);
       } catch {}
     }
     return '—';
