@@ -2,10 +2,10 @@ const fallbackDashboardData = {
   version: 'v1.2.0',
   lastUpdated: '未取得',
   agents: [
-    { name: '澪', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/mio_icon02.png' },
-    { name: 'ユイ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/yui_icon02.png' },
-    { name: 'ナナセ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/nanase_icon01.png' },
-    { name: 'レイン', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', currentTask: '—', iconPath: '/characters/rein_icon01.png' },
+    { name: '澪', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/mio_icon02.png' },
+    { name: 'ユイ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/yui_icon02.png' },
+    { name: 'ナナセ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/nanase_icon01.png' },
+    { name: 'レイン', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/rein_icon01.png' },
   ],
   cronJobs: [],
   gateway: {
@@ -115,7 +115,7 @@ function renderAgents(agents) {
       </div>
       <div class="agent-task-block">
         <p class="agent-task-label">現在のタスク</p>
-        <p class="agent-task-value" title="${escapeHtml(agent.currentTask ?? '—')}">${escapeHtml(agent.currentTask ?? '—')}</p>
+        ${(agent.recentTasks ?? ['—']).map((t) => `<p class=\"agent-task-value\" title=\"${escapeHtml(t)}\">${escapeHtml(t)}</p>`).join('')}
       </div>
     </article>
   `).join('');
