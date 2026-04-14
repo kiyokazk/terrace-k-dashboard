@@ -13,8 +13,10 @@ const AGENTS_ROOT = '/Users/kiyokazk/.openclaw/agents';
 const CRON_JOBS_FILE = '/Users/kiyokazk/.openclaw/cron/jobs.json';
 const CRON_RUNS_DIR = '/Users/kiyokazk/.openclaw/cron/runs';
 const GATEWAY_HEALTH_URL = 'http://127.0.0.1:18789/health';
+const TEAM_STATUS_FILE = '/Users/kiyokazk/TerraceK/projects/terrace-k-dashboard/team-status.json';
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
-const CURRENT_TASK_WINDOW_MS = 10 * 60 * 1000;
+const CURRENT_TASK_WINDOW_MS = 60 * 60 * 1000;
+const STALE_TEAM_STATUS_MS = 6 * 60 * 60 * 1000;
 
 function formatJst(dateLike) {
   if (!dateLike) return '未取得';
@@ -178,13 +180,68 @@ async function getGatewayStatus() {
   }
 }
 
+function parseIsoDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getTeamStatusTone(item, now = Date.now()) {
+  if (item.status === '問題発生') return 'error';
+  if (item.status === '依頼待ち' || item.status === '返答待ち') return 'warning';
+  if (item.status === '完了') return 'online';
+  const updatedAt = parseIsoDate(item.updatedAt);
+  if (!updatedAt) return 'warning';
+  return now - updatedAt.getTime() > STALE_TEAM_STATUS_MS ? 'warning' : 'unknown';
+}
+
+function getTeamStatusMeta(item, now = Date.now()) {
+  const hasNextAction = typeof item.nextAction === 'string' && item.nextAction.trim().length > 0;
+  const updatedAt = parseIsoDate(item.updatedAt);
+  return {
+    isMissingNextAction: !hasNextAction,
+    isStale: !updatedAt || now - updatedAt.getTime() > STALE_TEAM_STATUS_MS,
+  };
+}
+
+function getTeamStatuses() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(TEAM_STATUS_FILE, 'utf8'));
+    const items = Array.isArray(parsed?.items) ? parsed.items : [];
+    const now = Date.now();
+    return {
+      lastUpdated: formatJst(parsed?.lastUpdated ?? now),
+      items: items.map((item) => {
+        const meta = getTeamStatusMeta(item, now);
+        return {
+          id: item.id ?? `${item.owner ?? 'unknown'}-${item.taskName ?? 'task'}`,
+          taskName: item.taskName ?? '名称未設定',
+          owner: item.owner ?? '未設定',
+          status: item.status ?? '未着手',
+          nextAction: item.nextAction ?? '',
+          waitingFor: item.waitingFor ?? '—',
+          updatedAt: formatJst(item.updatedAt),
+          statusTone: getTeamStatusTone(item, now),
+          isMissingNextAction: meta.isMissingNextAction,
+          isStale: meta.isStale,
+        };
+      }),
+    };
+  } catch {
+    return {
+      lastUpdated: '未取得',
+      items: [],
+    };
+  }
+}
+
 async function collectStatus() {
   const generatedAt = Date.now();
   return {
-    version: 'v1.3.0',
+    version: 'v1.4.0',
     lastUpdated: formatJst(generatedAt),
     generatedAtMs: generatedAt,
     agents: AGENTS.map(getAgentData),
+    teamStatus: getTeamStatuses(),
     cronJobs: getCronJobs(),
     gateway: await getGatewayStatus(),
   };

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-04-14T15:00:00+09:00",
+  "items": [
+    {
+      "id": "dashboard-team-status-v1",
+      "taskName": "ダッシュボード改善と状態一覧導入",
+      "owner": "ユイ",
+      "status": "進行中",
+      "nextAction": "状態一覧JSONと最小ビューを実装する",
+      "waitingFor": "自分待ち",
+      "updatedAt": "2026-04-14T14:52:00+09:00"
+    },
+    {
+      "id": "dashboard-design-spec-v1",
+      "taskName": "状態一覧の情報設計整理",
+      "owner": "ナナセ",
+      "status": "返答待ち",
+      "nextAction": "DESIGNSPEC.mdを確定し共有する",
+      "waitingFor": "ナナセ待ち",
+      "updatedAt": "2026-04-14T14:52:00+09:00"
+    },
+    {
+      "id": "dashboard-state-definition-v1",
+      "taskName": "状態定義と運用ルール固定",
+      "owner": "澪",
+      "status": "返答待ち",
+      "nextAction": "固定版ルールを実装前提で維持する",
+      "waitingFor": "澪待ち",
+      "updatedAt": "2026-04-14T14:40:00+09:00"
+    }
+  ]
+}

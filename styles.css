@@ -203,12 +203,15 @@ button {
   overflow-x: auto;
 }
 
+.team-status-table,
 .cron-table {
   width: 100%;
   border-collapse: collapse;
   min-width: 760px;
 }
 
+.team-status-table th,
+.team-status-table td,
 .cron-table th,
 .cron-table td {
   text-align: left;
@@ -217,6 +220,7 @@ button {
   vertical-align: middle;
 }
 
+.team-status-table th,
 .cron-table th {
   background: #f2f5fa;
   color: var(--muted);
@@ -224,8 +228,70 @@ button {
   font-weight: 700;
 }
 
+.team-status-table tbody tr:hover,
 .cron-table tbody tr:hover {
   background: #f8fbff;
+}
+
+.team-status-row-critical {
+  background: #fff5f5;
+}
+
+.team-status-row-missing-action td:nth-child(4) {
+  background: #fff9e8;
+}
+
+.team-status-row-stale td:last-child {
+  color: var(--warn-text);
+  font-weight: 600;
+}
+
+.team-next-action {
+  color: var(--text);
+}
+
+.table-note-warning {
+  color: var(--warn-text);
+}
+
+.team-status-table td {
+  font-size: 0.95rem;
+}
+
+.team-status-table td:nth-child(1) {
+  min-width: 220px;
+}
+
+.team-status-table td:nth-child(4) {
+  min-width: 260px;
+}
+
+.team-status-table td:nth-child(5),
+.team-status-table td:nth-child(6) {
+  white-space: nowrap;
+}
+
+.team-status-table .status-badge {
+  white-space: nowrap;
+}
+
+.team-status-table tr.team-status-row-critical:hover {
+  background: #ffe8e8;
+}
+
+.team-status-table tr.team-status-row-missing-action:hover td:nth-child(4) {
+  background: #fff3cd;
+}
+
+.team-status-table tr.team-status-row-stale:hover td:last-child {
+  color: #8a5b00;
+}
+
+@media (max-width: 880px) {
+  .team-status-table,
+  .cron-table {
+    min-width: 680px;
+  }
 }
 
 .gateway-card {

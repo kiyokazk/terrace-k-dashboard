@@ -1,5 +1,5 @@
 const fallbackDashboardData = {
-  version: 'v1.2.0',
+  version: 'v1.4.0',
   lastUpdated: '未取得',
   agents: [
     { name: '澪', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/mio_icon02.png' },
@@ -7,6 +7,10 @@ const fallbackDashboardData = {
     { name: 'ナナセ', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/nanase_icon01.png' },
     { name: 'レイン', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/rein_icon01.png' },
   ],
+  teamStatus: {
+    lastUpdated: '未取得',
+    items: [],
+  },
   cronJobs: [],
   gateway: {
     status: 'Unknown', tone: 'unknown', description: 'サーバーからの取得に失敗しました。', checkedAt: '未取得',
@@ -41,9 +45,13 @@ function statusClass(tone) {
 
 function normalizeData(data) {
   return {
-    version: data?.version ?? 'v1.2.0',
+    version: data?.version ?? 'v1.4.0',
     lastUpdated: data?.lastUpdated ?? '未取得',
     agents: Array.isArray(data?.agents) && data.agents.length ? data.agents : fallbackDashboardData.agents,
+    teamStatus: {
+      lastUpdated: data?.teamStatus?.lastUpdated ?? '未取得',
+      items: Array.isArray(data?.teamStatus?.items) ? data.teamStatus.items : [],
+    },
     cronJobs: Array.isArray(data?.cronJobs) ? data.cronJobs : [],
     gateway: data?.gateway ?? fallbackDashboardData.gateway,
   };
@@ -121,6 +129,34 @@ function renderAgents(agents) {
   `).join('');
 }
 
+function renderTeamStatusRows(teamStatus) {
+  if (!teamStatus.items.length) {
+    return `<tr><td colspan="6"><span class="table-note">状態一覧はまだ手動登録されていません。</span></td></tr>`;
+  }
+  return teamStatus.items.map((item) => {
+    const rowClasses = [
+      item.status === '問題発生' ? 'team-status-row-critical' : '',
+      item.isMissingNextAction ? 'team-status-row-missing-action' : '',
+      item.isStale ? 'team-status-row-stale' : '',
+    ].filter(Boolean).join(' ');
+    return `
+      <tr class="${rowClasses}">
+        <td>
+          <strong>${escapeHtml(item.taskName)}</strong>
+          ${item.isStale ? '<div class="table-note table-note-warning">更新が古い可能性があります</div>' : ''}
+        </td>
+        <td>${escapeHtml(item.owner)}</td>
+        <td><span class="status-badge ${statusClass(item.statusTone)}">${escapeHtml(item.status)}</span></td>
+        <td>
+          ${item.nextAction ? `<span class="team-next-action">${escapeHtml(item.nextAction)}</span>` : '<span class="table-note table-note-warning">次の一手が未設定です</span>'}
+        </td>
+        <td>${escapeHtml(item.waitingFor ?? '—')}</td>
+        <td>${escapeHtml(item.updatedAt)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 function renderCronRows(cronJobs) {
   if (!cronJobs.length) return `<tr><td colspan="4"><span class="table-note">Cronジョブ情報を取得できませんでした。</span></td></tr>`;
   return cronJobs.map((job) => {
@@ -149,7 +185,7 @@ function renderToast() {
 function renderBanner() {
   if (state.loading) return '<div class="info-banner">読み込み中...</div>';
   if (state.loadError) return `<div class="info-banner info-banner-error">${escapeHtml(state.loadError)}</div>`;
-  return '<div class="info-banner">サーバーからリアルタイム取得しています。1秒ごとに自動更新します。</div>';
+  return '<div class="info-banner">サーバーからリアルタイム取得しています。30秒ごとに自動更新します。</div>';
 }
 
 function render() {
@@ -182,6 +218,31 @@ function render() {
           </div>
         </div>
         <div class="agent-grid">${renderAgents(data.agents)}</div>
+      </section>
+
+      <section class="section-card">
+        <div class="section-heading">
+          <div>
+            <h2 class="section-title">Team Status</h2>
+            <p class="section-description">止まりかけとボールの所在を拾うための共通一覧</p>
+          </div>
+          <span class="table-note">一覧更新: ${escapeHtml(data.teamStatus.lastUpdated)}</span>
+        </div>
+        <div class="table-wrap">
+          <table class="team-status-table">
+            <thead>
+              <tr>
+                <th>タスク名</th>
+                <th>担当者</th>
+                <th>状態</th>
+                <th>次の一手</th>
+                <th>待ち先</th>
+                <th>最終更新時刻</th>
+              </tr>
+            </thead>
+            <tbody>${renderTeamStatusRows(data.teamStatus)}</tbody>
+          </table>
+        </div>
       </section>
 
       <section class="section-card">
