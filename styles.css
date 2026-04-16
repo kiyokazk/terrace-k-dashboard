@@ -250,6 +250,12 @@ button {
   color: var(--text);
 }
 
+.team-status-help {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
 .table-note-warning {
   color: var(--warn-text);
 }
@@ -436,6 +442,17 @@ button {
   text-overflow: ellipsis;
 }
 
+.cron-job-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.run-button-inline {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .job-feedback {
   margin-top: 8px;
   font-size: 12px;
@@ -458,5 +475,9 @@ button {
 
   .header-actions {
     align-items: flex-start;
+  }
+
+  .cron-job-cell {
+    min-width: 240px;
   }
 }

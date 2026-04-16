@@ -35,9 +35,12 @@ function sendFile(res, filePath, method = 'GET') {
       return;
     }
     const ext = path.extname(filePath).toLowerCase();
+    const cacheControl = ['.html', '.js', '.css'].includes(ext)
+      ? 'no-store, must-revalidate'
+      : 'public, max-age=60';
     res.writeHead(200, {
       'Content-Type': MIME_TYPES[ext] ?? 'application/octet-stream',
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=60',
+      'Cache-Control': cacheControl,
     });
     if (method === 'HEAD') {
       res.end();

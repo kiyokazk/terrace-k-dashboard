@@ -1,33 +1,52 @@
 {
   "version": 1,
-  "lastUpdated": "2026-04-14T15:00:00+09:00",
+  "lastUpdated": "2026-04-16T12:14:04+09:00",
+  "updatedAt": "2026-04-16T12:14:04+09:00",
   "items": [
     {
-      "id": "dashboard-team-status-v1",
-      "taskName": "ダッシュボード改善と状態一覧導入",
-      "owner": "ユイ",
+      "id": "dashboard-light-fixes-v1",
+      "taskName": "ダッシュボード軽微修正の反映",
+      "owner": "澪",
       "status": "進行中",
-      "nextAction": "状態一覧JSONと最小ビューを実装する",
-      "waitingFor": "自分待ち",
-      "updatedAt": "2026-04-14T14:52:00+09:00"
-    },
-    {
-      "id": "dashboard-design-spec-v1",
-      "taskName": "状態一覧の情報設計整理",
-      "owner": "ナナセ",
-      "status": "返答待ち",
-      "nextAction": "DESIGNSPEC.mdを確定し共有する",
-      "waitingFor": "ナナセ待ち",
-      "updatedAt": "2026-04-14T14:52:00+09:00"
+      "nextAction": "未実施だった表示修正を反映し、画面確認まで完了する",
+      "waitingFor": "—",
+      "updatedAt": "2026-04-15T11:58:00+09:00"
     },
     {
       "id": "dashboard-state-definition-v1",
       "taskName": "状態定義と運用ルール固定",
       "owner": "澪",
-      "status": "返答待ち",
-      "nextAction": "固定版ルールを実装前提で維持する",
-      "waitingFor": "澪待ち",
-      "updatedAt": "2026-04-14T14:40:00+09:00"
+      "status": "完了",
+      "nextAction": "新しいタスクが発生したらルールに沿って状態一覧を更新する",
+      "waitingFor": "—",
+      "updatedAt": "2026-04-15T11:49:00+09:00"
+    },
+    {
+      "id": "dashboard-design-spec-v1",
+      "taskName": "状態一覧の情報設計整理",
+      "owner": "ナナセ",
+      "status": "完了",
+      "nextAction": "必要時のみUI改善要望に対応する",
+      "waitingFor": "—",
+      "updatedAt": "2026-04-15T11:49:00+09:00"
+    },
+    {
+      "id": "dashboard-team-status-v1",
+      "taskName": "ダッシュボード改善と状態一覧導入",
+      "owner": "ユイ",
+      "status": "完了",
+      "nextAction": "追加修正や表示不整合が出たら都度対応する",
+      "waitingFor": "—",
+      "updatedAt": "2026-04-15T11:49:00+09:00"
+    },
+    {
+      "id": "dashboard-agent-mapping-fix-v1",
+      "taskName": "AgentsセクションのagentId対応修正",
+      "owner": "澪",
+      "status": "完了",
+      "nextAction": "今後agentId変更時はMEMORY.md対応表と同時に確認する",
+      "waitingFor": "—",
+      "updatedAt": "2026-04-15T11:49:00+09:00"
     }
   ]
 }

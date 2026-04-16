@@ -1,5 +1,5 @@
 const fallbackDashboardData = {
-  version: 'v1.4.0',
+  version: 'v1.4.1',
   lastUpdated: '未取得',
   agents: [
     { name: '澪', status: 'offline', label: 'Offline', model: '—', checkedAt: '未取得', lastActive: '未取得', recentTasks: ['—'], iconPath: '/characters/mio_icon02.png' },
@@ -45,7 +45,7 @@ function statusClass(tone) {
 
 function normalizeData(data) {
   return {
-    version: data?.version ?? 'v1.4.0',
+    version: data?.version ?? 'v1.4.1',
     lastUpdated: data?.lastUpdated ?? '未取得',
     agents: Array.isArray(data?.agents) && data.agents.length ? data.agents : fallbackDashboardData.agents,
     teamStatus: {
@@ -117,7 +117,6 @@ function renderAgents(agents) {
           <span class="status-badge ${statusClass(agent.status)}">${escapeHtml(agent.label)}</span>
           <p class="agent-model">Model: ${escapeHtml(agent.model ?? '—')}</p>
           <p class="agent-meta">Last active: ${escapeHtml(agent.lastActive ?? '未取得')}</p>
-          <p class="agent-meta">Last checked: ${escapeHtml(agent.checkedAt ?? '未取得')}</p>
         </div>
         <img class="agent-icon" src="${escapeHtml(agent.iconPath)}" alt="${escapeHtml(agent.name)} icon" />
       </div>
@@ -158,21 +157,23 @@ function renderTeamStatusRows(teamStatus) {
 }
 
 function renderCronRows(cronJobs) {
-  if (!cronJobs.length) return `<tr><td colspan="4"><span class="table-note">Cronジョブ情報を取得できませんでした。</span></td></tr>`;
+  if (!cronJobs.length) return `<tr><td colspan="3"><span class="table-note">Cronジョブ情報を取得できませんでした。</span></td></tr>`;
   return cronJobs.map((job) => {
     const feedback = state.inlineJobFeedback[job.id];
     return `
       <tr>
         <td>
-          <strong>${escapeHtml(job.name)}</strong>
-          <div class="table-note">agent: ${escapeHtml(job.agentId ?? '—')}</div>
-          ${feedback ? `<div class="job-feedback ${feedback.tone === 'error' ? 'job-feedback-error' : ''}">${escapeHtml(feedback.text)}</div>` : ''}
+          <div class="cron-job-cell">
+            <button class="run-button run-button-inline" data-job-id="${escapeHtml(job.id)}" ${state.runningJobId ? 'disabled' : ''}>${state.runningJobId === job.id ? '実行中...' : 'Run'}</button>
+            <div>
+              <strong>${escapeHtml(job.name)}</strong>
+              <div class="table-note">agent: ${escapeHtml(job.agentId ?? '—')}</div>
+              ${feedback ? `<div class="job-feedback ${feedback.tone === 'error' ? 'job-feedback-error' : ''}">${escapeHtml(feedback.text)}</div>` : ''}
+            </div>
+          </div>
         </td>
         <td><span class="status-badge ${statusClass(job.statusTone)}">${escapeHtml(job.status)}</span></td>
         <td>${escapeHtml(job.lastRunAt)}</td>
-        <td>
-          <button class="run-button" data-job-id="${escapeHtml(job.id)}" ${state.runningJobId ? 'disabled' : ''}>${state.runningJobId === job.id ? '実行中...' : 'Run'}</button>
-        </td>
       </tr>
     `;
   }).join('');
@@ -180,12 +181,6 @@ function renderCronRows(cronJobs) {
 
 function renderToast() {
   return state.toastMessage ? `<div class="toast">${escapeHtml(state.toastMessage)}</div>` : '';
-}
-
-function renderBanner() {
-  if (state.loading) return '<div class="info-banner">読み込み中...</div>';
-  if (state.loadError) return `<div class="info-banner info-banner-error">${escapeHtml(state.loadError)}</div>`;
-  return '<div class="info-banner">サーバーからリアルタイム取得しています。30秒ごとに自動更新します。</div>';
 }
 
 function render() {
@@ -208,8 +203,6 @@ function render() {
         </div>
       </header>
 
-      ${renderBanner()}
-
       <section class="section-card">
         <div class="section-heading">
           <div>
@@ -225,6 +218,7 @@ function render() {
           <div>
             <h2 class="section-title">Team Status</h2>
             <p class="section-description">止まりかけとボールの所在を拾うための共通一覧</p>
+            <p class="team-status-help">この一覧は状態更新イベントで供給されます。更新が古い場合は、更新イベント未実行の可能性があります。</p>
           </div>
           <span class="table-note">一覧更新: ${escapeHtml(data.teamStatus.lastUpdated)}</span>
         </div>
@@ -260,7 +254,6 @@ function render() {
                 <th>ジョブ名</th>
                 <th>状態</th>
                 <th>最終実行時刻</th>
-                <th>アクション</th>
               </tr>
             </thead>
             <tbody>${renderCronRows(data.cronJobs)}</tbody>
@@ -279,7 +272,6 @@ function render() {
           <span class="status-badge ${statusClass(data.gateway.tone)}">${escapeHtml(data.gateway.status)}</span>
           <p class="gateway-description">${escapeHtml(data.gateway.description)}</p>
         </div>
-        <p class="gateway-meta">Last checked: ${escapeHtml(data.gateway.checkedAt)}</p>
       </section>
     </main>
     ${renderToast()}
@@ -304,6 +296,7 @@ function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   autoRefreshTimer = window.setInterval(() => loadDashboardData(), 1_000);
 }
+
 
 render();
 loadDashboardData();

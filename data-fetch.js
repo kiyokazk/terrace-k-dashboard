@@ -3,10 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 const AGENTS = [
-  { id: 'main', name: '澪', iconPath: '/characters/mio_icon02.png' },
+  { id: 'mio', name: '澪', iconPath: '/characters/mio_icon02.png' },
   { id: 'yui', name: 'ユイ', iconPath: '/characters/yui_icon02.png' },
   { id: 'nanase', name: 'ナナセ', iconPath: '/characters/nanase_icon01.png' },
-  { id: 'rein', name: 'レイン', iconPath: '/characters/rein_icon01.png' },
+  { id: 'main', name: 'レイン', iconPath: '/characters/rein_icon01.png' },
 ];
 
 const AGENTS_ROOT = '/Users/kiyokazk/.openclaw/agents';
@@ -112,7 +112,6 @@ function resolveRecentTasks(agentId, latestSessionPath) {
 
 function getAgentData(agent) {
   const latest = findLatestSessionFile(agent.id);
-  const checkedAt = formatJst(Date.now());
   if (!latest) {
     return {
       name: agent.name,
@@ -121,7 +120,6 @@ function getAgentData(agent) {
       status: 'offline',
       label: 'Offline',
       model: '取得不可',
-      checkedAt,
       lastActive: '未取得',
       recentTasks: resolveRecentTasks(agent.id, null),
     };
@@ -135,7 +133,6 @@ function getAgentData(agent) {
     status: isOnline ? 'online' : 'offline',
     label: isOnline ? 'Online' : 'Offline',
     model: extractModelFromJsonl(latest.fullPath),
-    checkedAt,
     lastActive: formatJst(latest.mtimeMs),
     recentTasks: resolveRecentTasks(agent.id, latest.fullPath),
   };
@@ -237,7 +234,7 @@ function getTeamStatuses() {
 async function collectStatus() {
   const generatedAt = Date.now();
   return {
-    version: 'v1.4.0',
+    version: 'v1.4.1',
     lastUpdated: formatJst(generatedAt),
     generatedAtMs: generatedAt,
     agents: AGENTS.map(getAgentData),
